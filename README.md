@@ -7,6 +7,8 @@ A cache-optimized, lock-free limit order book and matching engine built from scr
 > **Status: early development.** This README describes the target design. The "Benchmark Results" section will only be filled in with real numbers once code exists and benchmarks have actually run — see [`docs/description.md`](docs/description.md) for the honest, current build status and step-by-step plan.
 
 ---
+> **Note on Strategy Execution:** To see this matching engine in action processing algorithmic trading flow, check out my implementation of an [Avellaneda-Stoikov Market Maker](https://github.com/abhishek2x/avellaneda-mm).
+---
 
 ## Why this exists
 
