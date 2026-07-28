@@ -1,121 +1,364 @@
 # liquid-book
 
-### Low-Latency Order Book & Matching Engine (C++20)
+### Low-Latency Exchange Simulator, Order Book & Matching Engine (C++20)
 
-A cache-optimized, lock-free limit order book and matching engine built from scratch in C++20. Focused entirely on systems engineering: data structure design, concurrent programming, and measured performance — no trading strategy logic lives here (see [`avellaneda-mm`](https://github.com/abhishek2x/avellaneda-mm) for the strategy layer, which depends on this repo).
+A cache-optimized, low-latency exchange simulator built from scratch in **C++20**, featuring a lock-free limit order book, matching engine, and event-driven market data pipeline. The project focuses entirely on **systems engineering**—data structure design, concurrent programming, memory optimization, and measured performance.
 
-> **Status: early development.** This README describes the target design. The "Benchmark Results" section will only be filled in with real numbers once code exists and benchmarks have actually run — see [`docs/description.md`](docs/description.md) for the honest, current build status and step-by-step plan.
+Unlike most matching engine projects, **Liquid Book is designed as a reusable exchange simulator**. It exposes a clean participant API that allows trading strategies (written in Python, C++, or any future language binding) to connect, receive market data, and submit orders.
 
----
-> **Note on Strategy Execution:** To see this matching engine in action processing algorithmic trading flow, check out my implementation of an [Avellaneda-Stoikov Market Maker](https://github.com/abhishek2x/avellaneda-mm).
----
-
-## Why this exists
-
-Most portfolio projects that claim "low-latency" either (a) never measure anything, or (b) measure once and never re-verify after changes. This repo is an exercise in doing it properly: correctness first (tested against a reference implementation), concurrency safety second (ThreadSanitizer-clean), performance third (benchmarked, not guessed) — in that order, with each phase committed separately so the history is honest.
+> **Status: Early Development.** This README describes the target architecture. Benchmark numbers will only be added once they have been measured and reproduced. See `docs/description.md` for the current implementation status and development roadmap.
 
 ---
 
-## Architecture
+> **Companion Project:** To see this exchange processing live market-making orders, check out my implementation of an **Avellaneda-Stoikov Market Maker**:
+>
+> https://github.com/abhishek2x/avellaneda-mm
 
+---
+
+# Why this exists
+
+Most open-source "matching engines" stop at maintaining an order book.
+
+Real electronic exchanges do much more:
+
+- Maintain a limit order book
+- Match incoming orders
+- Generate trades
+- Publish market data
+- Notify participants of fills
+- Support multiple independent trading participants
+- Provide deterministic replay for testing
+
+Liquid Book aims to model these exchange mechanics while remaining lightweight, deterministic, and performance-focused.
+
+The goal is to build a reusable exchange engine that can power multiple algorithmic trading strategies without embedding any strategy-specific logic.
+
+---
+
+# System Architecture
+
+```text
+                      Upstream Market
+               (Replay / Synthetic Traders)
+                           │
+                      Order Flow
+                           │
+                           ▼
+        ┌─────────────────────────────────────┐
+        │          Liquid Book (C++)          │
+        │─────────────────────────────────────│
+        │ Reverse Vector Order Book           │
+        │ Matching Engine                     │
+        │ Trade Engine                        │
+        │ Event Bus                           │
+        │ Market Data Feed                    │
+        │ Participant API                     │
+        └──────────────┬──────────────────────┘
+                       │
+      ┌────────────────┼────────────────┐
+      │                │                │
+      ▼                ▼                ▼
+ Avellaneda-MM      TWAP Bot      Random Trader
+    (Python)         (Future)       (Future)
 ```
-┌───────────────────────────────────────────────────────────────┐
-│                      liquid-book (C++20)                      │
-│                                                                 │
-│   Market Replay ──► Order Book ──► FastQueue ──► Consumers     │
-│   (L2 CSV Feed)     (Reverse Vec)   (Lock-Free    (Strategy /  │
-│                                       SPMC Ring)    Risk /      │
-│                                                      Logging)   │
-│                          │                                      │
-│                          ▼                                      │
-│                    Sim Exchange                                 │
-│                    (Queue-Priority Fill Model)                  │
-└───────────────────────────────────────────────────────────────┘
+
+Liquid Book behaves as a miniature electronic exchange.
+
+Trading strategies are completely independent applications that connect through the exchange API.
+
+---
+
+# Companion Project
+
+This repository intentionally contains **no trading logic**.
+
+Strategies live outside the exchange.
+
+Current participant:
+
+- **Avellaneda-MM (Python)** — Inventory-aware market-making strategy implementing the Avellaneda-Stoikov model.
+
+Future participants may include:
+
+- TWAP execution
+- VWAP execution
+- Momentum strategies
+- Reinforcement Learning agents
+- Arbitrage strategies
+- Noise traders
+
+This separation mirrors production trading systems where exchanges remain strategy-agnostic.
+
+---
+
+# Component Architecture
+
+```text
+                    Incoming Orders
+                           │
+                           ▼
+                 Reverse Vector Order Book
+                           │
+                           ▼
+                    Matching Engine
+                           │
+              ┌────────────┴────────────┐
+              ▼                         ▼
+        Trade Generation         Order Book Update
+              │                         │
+              └────────────┬────────────┘
+                           ▼
+                    Event Dispatcher
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+     Market Data      Fill Events      Trade Stream
 ```
 
-## Core Components
+---
 
-| Component | What It Does | Key Design Choice |
-|---|---|---|
-| **Reverse Vector Order Book** | Maintains L2 depth for bid/ask sides | Best bid/ask mapped to vector back → O(1) frontier updates |
-| **Lock-Free FastQueue** | Fans out book events to consumer threads | Bounded SPMC ring buffer, `alignas(64)` cache-line padding per consumer cursor |
-| **Sim Exchange** | Models order matching against historical/synthetic data | Queue-priority-aware fill simulation |
-| **Market Replay** | Feeds historical L2 data through the pipeline | Deterministic, reproducible test harness |
-| **Risk Guards** | Enforces position limits and drawdown controls | Kill switch halts engine on breach |
+# Core Components
 
-## Repository Structure
+| Component | Responsibility | Design Choice |
+|-----------|----------------|---------------|
+| **Reverse Vector Order Book** | Maintains L2 bid/ask depth | Best price mapped to vector back for O(1) frontier updates |
+| **Matching Engine** | Matches incoming orders | Price-time priority |
+| **Trade Engine** | Generates executions | Deterministic trade generation |
+| **Participant API** | Allows strategies to interact with the exchange | Language-agnostic interface (Python bindings initially) |
+| **Event Dispatcher** | Broadcasts market events | Lock-free SPMC ring buffer |
+| **Market Replay** | Replays historical market data | Deterministic testing |
+| **Risk Guards** | Exchange-side safety controls | Position limits & kill switch |
 
+---
+
+# Participant API
+
+Trading strategies communicate with the exchange using a simple participant interface.
+
+### Order API
+
+```python
+exchange.place_limit_order(
+    side="BUY",
+    price=100.25,
+    quantity=10
+)
+
+exchange.cancel_order(order_id)
 ```
+
+### Market Data API
+
+```python
+book = exchange.get_order_book()
+
+best_bid = exchange.best_bid()
+best_ask = exchange.best_ask()
+
+recent_trades = exchange.get_recent_trades()
+```
+
+### Event API (Planned)
+
+```python
+exchange.on_trade(callback)
+
+exchange.on_book_update(callback)
+
+exchange.on_fill(callback)
+```
+
+Initially, these APIs will be exposed to Python through **pybind11**, allowing strategies to use the C++ exchange directly without networking overhead.
+
+Future communication layers may include:
+
+- gRPC
+- ZeroMQ
+- Kafka / NATS
+- Native C++ API
+
+without changing exchange internals.
+
+---
+
+# Repository Structure
+
+```text
 include/
-├── book/                   # Reverse Vector Order Book (L2)
-├── queue/                  # Lock-free SPMC Ring Buffer (FastQueue)
-└── risk/                   # Position limits, drawdown, kill switch
+├── book/                   # Reverse Vector Order Book
+├── matching/               # Matching Engine
+├── exchange/               # Exchange & Participant API
+├── queue/                  # Lock-free Event Queue
+└── risk/                   # Risk Guards
+
 src/
-├── engine.cpp              # Main event loop & orchestration
-├── replay.cpp              # Market replay reader
-└── simulator.cpp           # Simulated exchange / fill model
-bench/                      # Micro-benchmarks (Google Benchmark)
-tests/                      # Unit + integration tests, incl. TSan stress tests
-data/                       # Sample L2 market data
+├── exchange.cpp
+├── engine.cpp
+├── replay.cpp
+├── simulator.cpp
+
+bench/
+tests/
+data/
+
 docs/
-└── description.md          # Detailed dev plan / progress log (start here)
+└── description.md
+
 CMakeLists.txt
 ```
 
-## Prerequisites
+---
 
-- C++20 compiler — GCC 12+ / Clang 15+
-- CMake ≥ 3.22
-- Google Benchmark (fetched via CMake `FetchContent`)
-- Clang with `-fsanitize=thread` support (for concurrency tests)
+# Design Principles
 
-## Build
+- Strategy-independent exchange
+- Zero allocations in the hot path
+- Cache-efficient memory layout
+- Deterministic execution
+- Lock-free event propagation
+- Reproducible benchmarking
+- Test-driven correctness before optimization
+
+---
+
+# Performance Engineering (Planned)
+
+- Preallocated memory pools
+- Cache-line padding (`alignas(64)`)
+- Acquire/Release memory ordering
+- False-sharing elimination
+- Branch prediction optimization
+- SIMD where beneficial
+- Benchmark-driven optimization only
+
+---
+
+# Performance Targets
+
+> Placeholder goals until actual benchmarks are committed.
+
+| Operation | Target |
+|------------|---------|
+| L2 Book Update | < 50 ns |
+| Order Match | < 100 ns |
+| Event Publish | < 30 ns |
+| Participant Notification | < 50 ns |
+| Tick-to-Trade Pipeline | < 1 μs |
+
+Once benchmarked, this section will include:
+
+- p50 / p99 / p99.9 latency
+- Hardware specifications
+- Compiler flags
+- Benchmark methodology
+- Commit hash for reproducibility
+
+---
+
+# Build
 
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
+
 cmake --build build -j$(nproc)
 ```
 
-## Run Tests & Benchmarks
+---
+
+# Tests
 
 ```bash
-# Unit + correctness tests
 ctest --test-dir build --output-on-failure
+```
 
-# ThreadSanitizer stress test (separate build)
-cmake -B build-tsan -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=thread"
-cmake --build build-tsan -j$(nproc)
+---
+
+# ThreadSanitizer
+
+```bash
+cmake -B build-tsan \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_CXX_FLAGS="-fsanitize=thread"
+
+cmake --build build-tsan
+
 ./build-tsan/tests/queue_stress_test
+```
 
-# Micro-benchmarks (Release build only — never benchmark a Debug build)
+---
+
+# Benchmarks
+
+```bash
 ./build/bench/book_benchmark
+
 ./build/bench/queue_benchmark
 ```
 
-## Performance Targets
+---
 
-*(Not yet measured — placeholders until benchmarks are run and committed. Do not treat these as claims.)*
+# Development Roadmap
 
-| Operation | Target Latency | Status |
-|---|---|---|
-| L2 book update (single level) | < 50 ns | ⏳ Not yet benchmarked |
-| FastQueue publish (producer) | < 30 ns | ⏳ Not yet benchmarked |
-| FastQueue consume (per reader) | < 40 ns | ⏳ Not yet benchmarked |
-| End-to-end tick-to-book | < 1 μs | ⏳ Not yet benchmarked |
+## Phase 1
 
-Once real numbers exist, this table moves to **"Benchmark Results"** and includes p50/p99/p99.9, hardware spec, and the exact commit the numbers came from.
+- Reverse Vector Order Book
+- Matching Engine
+- Unit Tests
 
-## Performance Engineering Techniques (planned)
+## Phase 2
 
-- **Zero allocations** in the hot path — memory pre-allocated at startup via contiguous arrays / object pools.
-- **Cache-line isolation** — atomic cursors padded to 64 bytes (`alignas(64)`) to eliminate false sharing.
-- **Acquire/release memory ordering** on the ring buffer — not `seq_cst` — with a written justification of why it's correct (see `docs/description.md`).
-- **Branchless dispatch** where profiling shows branch mispredictions matter — not applied speculatively.
+- Lock-Free Event Queue
+- Market Replay
+- Exchange Simulator
 
-## Build Log / Progress
+## Phase 3
 
-See [`docs/description.md`](docs/description.md) for the phase-by-phase plan and current status. This is updated as each phase actually lands, not in advance.
+- Python bindings (pybind11)
+- Participant API
+- Avellaneda-MM integration
 
-## License
+## Phase 4
+
+- Historical replay
+- Synthetic market generator
+- Latency benchmarking
+
+## Phase 5
+
+- Multi-participant simulation
+- gRPC interface
+- Advanced exchange analytics
+
+---
+
+# Related Projects
+
+| Repository | Purpose |
+|------------|---------|
+| **liquid-book** | Low-latency exchange simulator & matching engine |
+| **avellaneda-mm** | Inventory-aware market-making strategy consuming Liquid Book |
+
+Together, these repositories form a modular algorithmic trading research platform:
+
+```text
+            Exchange (C++)
+                 ▲
+                 │
+      Participant API
+                 │
+                 ▼
+      Market-Making Strategy (Python)
+```
+
+---
+
+# Build Log / Progress
+
+See `docs/description.md` for the phase-by-phase implementation plan and current status.
+
+---
+
+# License
 
 MIT — see `LICENSE`.
