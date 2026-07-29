@@ -15,7 +15,7 @@ This is the working doc to refer back to when starting/resuming dev work. Update
 
 ## Phase 1 — Order Book (no concurrency yet)
 
-**Status: ⏳ Not started**
+**Status: ✅ Done**
 
 Files:
 ```
