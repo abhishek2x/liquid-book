@@ -14,3 +14,22 @@ target_include_directories(book_tests PRIVATE
 
 include(GoogleTest)
 gtest_discover_tests(book_tests)
+
+# Phase 2 — Queue tests
+add_executable(queue_tests
+    queue_test.cpp
+)
+target_link_libraries(queue_tests PRIVATE
+    GTest::gtest_main
+)
+gtest_discover_tests(queue_tests)
+
+# Multi-threaded queue stress test (TSan target)
+add_executable(queue_stress_test
+    queue_stress_test.cpp
+)
+find_package(Threads REQUIRED)
+target_link_libraries(queue_stress_test PRIVATE
+    Threads::Threads
+)
+

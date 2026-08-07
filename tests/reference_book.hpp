@@ -1,13 +1,5 @@
 #pragma once
 
-// reference_book.hpp — Naive std::map-based L2 book used as ground truth for differential testing.
-//
-// This is intentionally simple: correctness over performance.  It is the oracle against which
-// the reverse-vector OrderBook is compared in property tests.
-//
-// Bids: std::map<double, double> with reverse iteration (highest price = best bid).
-// Asks: std::map<double, double> with forward iteration (lowest price = best ask).
-
 #include <map>
 #include <optional>
 #include <utility>
@@ -18,8 +10,6 @@ namespace liquidbook {
 class ReferenceBook {
 public:
     ReferenceBook() = default;
-
-    // ── Mutating API ─────────────────────────────────────────────────────────
 
     void apply_bid_update(double price, double qty) {
         if (qty == 0.0) {
@@ -37,16 +27,14 @@ public:
         }
     }
 
-    // ── Read API ─────────────────────────────────────────────────────────────
-
     [[nodiscard]] std::optional<double> best_bid() const {
         if (bids_.empty()) return std::nullopt;
-        return bids_.rbegin()->first;  // highest key
+        return bids_.rbegin()->first;
     }
 
     [[nodiscard]] std::optional<double> best_ask() const {
         if (asks_.empty()) return std::nullopt;
-        return asks_.begin()->first;   // lowest key
+        return asks_.begin()->first;
     }
 
     [[nodiscard]] std::optional<double> best_bid_qty() const {
@@ -59,7 +47,6 @@ public:
         return asks_.begin()->second;
     }
 
-    /// Snapshot of all bid levels as (price, qty) sorted descending (best first).
     [[nodiscard]] std::vector<std::pair<double, double>> bid_snapshot() const {
         std::vector<std::pair<double, double>> out;
         out.reserve(bids_.size());
@@ -69,7 +56,6 @@ public:
         return out;
     }
 
-    /// Snapshot of all ask levels as (price, qty) sorted ascending (best first).
     [[nodiscard]] std::vector<std::pair<double, double>> ask_snapshot() const {
         std::vector<std::pair<double, double>> out;
         out.reserve(asks_.size());
@@ -84,8 +70,8 @@ public:
     [[nodiscard]] bool empty() const noexcept { return bids_.empty() && asks_.empty(); }
 
 private:
-    std::map<double, double> bids_;  // key = price, value = aggregate qty
+    std::map<double, double> bids_;
     std::map<double, double> asks_;
 };
 
-}  // namespace liquidbook
+} // namespace liquidbook

@@ -46,7 +46,7 @@ tests/book_test.cpp
 
 ## Phase 2 — Lock-Free SPMC FastQueue
 
-**Status: ⏳ Not started**
+**Status: ✅ Done**
 
 Files:
 ```
@@ -129,9 +129,10 @@ bench/queue_benchmark.cpp
 
 ## Explicitly out of scope for this repo
 
-- Any trading strategy logic (OFI, micro-price, Avellaneda-Stoikov quoting) — that's [`avellaneda-mm`](https://github.com/abhishek2x/avellaneda-mm), which depends on this repo as a library.
-- ML/regime detection, pybind11 bridge — also `avellaneda-mm`, and only if time allows there.
+- Any trading strategy logic (OFI, micro-price, Avellaneda-Stoikov quoting) — that's [`avellaneda-mm`](https://github.com/abhishek2x/avellaneda-mm), which is written in Python and depends on this repo as a library.
+- ML/regime detection, pybind11 bridge — also lives in `avellaneda-mm` (where `pybind11` wraps `liquid-book`'s C++ library for zero-IPC in-memory Python calls), and only if time allows there.
 - Real exchange connectivity of any kind. This is a simulator, not a trading system, and should never be described as one.
+
 
 ## Next session checklist
 

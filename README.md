@@ -277,9 +277,7 @@ ctest --test-dir build --output-on-failure
 # ThreadSanitizer
 
 ```bash
-cmake -B build-tsan \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_CXX_FLAGS="-fsanitize=thread"
+cmake -B build-tsan -DCMAKE_BUILD_TYPE=Debug -DENABLE_TSAN=ON
 
 cmake --build build-tsan
 

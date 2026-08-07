@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/cmake_install.cmake",
+		"/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/_deps/googletest-build/cmake_install.cmake",
+		"/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/_deps/googletest-build/googlemock/cmake_install.cmake",
+		"/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/_deps/googletest-build/googletest/cmake_install.cmake",
+		"/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/tests/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
