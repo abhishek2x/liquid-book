@@ -2,12 +2,14 @@
 
 #include <cstdint>
 
-namespace liquidbook {
+namespace liquidbook
+{
 
-struct PriceLevel {
-  double price;
-  double aggregate_qty;
-  int32_t order_count;
-};
+  struct PriceLevel
+  {
+    double price;
+    double aggregate_qty;
+    int32_t order_count;
+  };
 
 } // namespace liquidbook
