@@ -18,6 +18,7 @@ This is the working doc to refer back to when starting/resuming dev work. Update
 **Status: ✅ Done**
 
 Files:
+
 ```
 include/book/price_level.hpp
 include/book/order_book.hpp
@@ -26,6 +27,7 @@ tests/book_test.cpp
 ```
 
 **Design:**
+
 - `PriceLevel`: `{price, aggregate_qty, order_count}`. No per-order tracking in v1 — that's a v2 extension if time allows (needed for true price-time priority; v1 is price-priority only, aggregated at each level).
 - `OrderBook`: two `std::vector<PriceLevel>`:
   - Ask side: ascending price, best ask = `.front()`.
@@ -36,6 +38,7 @@ tests/book_test.cpp
 **Why this data structure over `std::map`:** `std::map` gives O(log n) with pointer-chasing and poor cache locality (red-black tree nodes scattered on the heap). A vector keeps levels contiguous — better cache behavior for the common case (updates near the top of book), at the cost of O(n) worst-case insert for a level far from the best price. This is a legitimate tradeoff to be ready to defend, not a strictly-better claim.
 
 **Testing plan:**
+
 - Reference implementation: a naive `std::map<price, qty>` book, built alongside as the ground truth.
 - Property test: generate N random order sequences (inserts/updates/cancels), run through both implementations, assert identical best-bid/ask and full depth after every operation.
 - Edge cases explicitly tested: empty book, single order, crossing orders (should not happen at book level — that's the matching engine's job — but book should not silently corrupt state if it does), level fully drained to zero.
@@ -49,6 +52,7 @@ tests/book_test.cpp
 **Status: ✅ Done**
 
 Files:
+
 ```
 include/queue/fast_queue.hpp
 tests/queue_test.cpp
@@ -56,17 +60,20 @@ tests/queue_stress_test.cpp   # TSan target
 ```
 
 **Design:**
+
 - Fixed-capacity ring buffer, capacity is a power of 2 → use `& (capacity - 1)` instead of `% capacity` for the index wrap (modulo is surprisingly expensive in a hot loop; bitmask is one instruction).
 - Single producer. N consumers, **each with its own read cursor** — this is what makes it SPMC-safe: no consumer can starve or corrupt another's read position.
-- Cursor layout: `alignas(64) std::atomic<uint64_t>` per cursor. The `alignas(64)` matters because two atomics sharing a 64-byte cache line cause **false sharing** — one core's write to its cursor invalidates the cache line for every other core reading a *different* cursor on the same line, even though they're logically independent. Padding each cursor to its own cache line eliminates this.
+- Cursor layout: `alignas(64) std::atomic<uint64_t>` per cursor. The `alignas(64)` matters because two atomics sharing a 64-byte cache line cause **false sharing** — one core's write to its cursor invalidates the cache line for every other core reading a _different_ cursor on the same line, even though they're logically independent. Padding each cursor to its own cache line eliminates this.
 
 **Memory ordering (the part interviewers actually probe):**
+
 - Producer writes the slot data first (relaxed store is fine — it's plain data, not yet visible to consumers), **then** publishes by doing a `release` store to the write index.
 - Consumer does an `acquire` load of the write index, **then** reads the slot data.
-- Why not `seq_cst` everywhere: `seq_cst` forces a total global order across *all* atomics in the program, which costs a full memory fence on most architectures. `acquire`/`release` only guarantees ordering *between this producer and this consumer* on *this* variable — which is exactly the guarantee needed (the data write happens-before the index write, which happens-before the index read, which happens-before the data read). No stronger guarantee is required, so paying for one is wasted latency.
+- Why not `seq_cst` everywhere: `seq_cst` forces a total global order across _all_ atomics in the program, which costs a full memory fence on most architectures. `acquire`/`release` only guarantees ordering _between this producer and this consumer_ on _this_ variable — which is exactly the guarantee needed (the data write happens-before the index write, which happens-before the index read, which happens-before the data read). No stronger guarantee is required, so paying for one is wasted latency.
 - Be ready to explain this on a whiteboard without the README open.
 
 **Testing plan:**
+
 - Correctness (single-threaded): push N items, pop N items, verify order and values.
 - Stress test: 1 producer + K consumer threads (K = 2, 4, 8), each consumer counts/checksums what it reads, run under `-fsanitize=thread`. Zero TSan warnings is the bar — not "fewer" warnings, zero.
 - Run the stress test with a high iteration count (millions of ops) — races are often intermittent and won't show up in a quick run.
@@ -77,18 +84,23 @@ tests/queue_stress_test.cpp   # TSan target
 
 ## Phase 3 — Sim Exchange & Market Replay
 
-**Status: ⏳ Not started**
+**Status: 🔧 In progress**
 
 Files:
+
 ```
-src/simulator.cpp
-src/replay.cpp
+include/sim/market_replay.hpp
+include/sim/sim_exchange.hpp
+src/sim/market_replay.cpp
+src/sim/sim_exchange.cpp
 data/sample_l2.csv
 ```
 
 **Design:**
-- Replay: read historical/synthetic L2 CSV data, feed events into the order book in timestamp order — deterministic, so a bug is always reproducible from the same input file.
-- Sim exchange: when an incoming order crosses the book, match against resting orders respecting **queue priority** at each price level (first-in-first-filled among orders at the same price) — this is the piece that makes fills realistic rather than just "assume full fill at requested price."
+
+- Replay: parse deterministic L2 CSV rows, apply them to the book in timestamp order, and emit a trade record whenever a crossing occurs.
+- Sim exchange: on crossing, match against the best resting price and consume the resting quantity in a simple aggregate model; this is the v1 implementation before per-order queue arrays are introduced.
+- Why this is the right cut: the book remains cache-friendly and the simulator handles crossing semantics without overloading the book data structure with per-order tracking.
 
 **Definition of done:** A full run of `data/sample_l2.csv` through replay → book → sim exchange completes without crashing/asserting, produces a trade log, and the trade log is spot-checked by hand against a few known points in the sample data.
 
@@ -99,6 +111,7 @@ data/sample_l2.csv
 **Status: ⏳ Not started**
 
 Files:
+
 ```
 include/risk/limits.hpp
 ```
@@ -112,12 +125,14 @@ Simple, deliberately: position limit check + drawdown check, both O(1), both abl
 **Status: ⏳ Not started**
 
 Files:
+
 ```
 bench/book_benchmark.cpp
 bench/queue_benchmark.cpp
 ```
 
 **Method:**
+
 - Google Benchmark, **Release build only** (`-DCMAKE_BUILD_TYPE=Release`) — a Debug-build number is meaningless and will be spotted immediately by anyone who's done this before.
 - Pin the benchmark process to an isolated core (`taskset -c N ./book_benchmark` or `sched_setaffinity` in-code) to reduce scheduler noise.
 - Report **p50/p99/p99.9**, not mean. Mean hides tail latency, which is the number that actually matters in this domain — and reporting percentiles instead of an average is itself a signal of understanding the domain, worth calling out explicitly in the README once done.
@@ -133,10 +148,10 @@ bench/queue_benchmark.cpp
 - ML/regime detection, pybind11 bridge — also lives in `avellaneda-mm` (where `pybind11` wraps `liquid-book`'s C++ library for zero-IPC in-memory Python calls), and only if time allows there.
 - Real exchange connectivity of any kind. This is a simulator, not a trading system, and should never be described as one.
 
-
 ## Next session checklist
 
 When resuming work, before writing any code:
+
 1. Re-read the "Status" column above — resume at the first ⏳, don't skip ahead.
 2. Run `ctest` on whatever's already there to confirm nothing regressed.
-3. Update this file's Status column and commit the doc update *with* the code change, same commit.
+3. Update this file's Status column and commit the doc update _with_ the code change, same commit.
