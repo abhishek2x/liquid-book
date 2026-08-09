@@ -4,6 +4,7 @@
 #include <array>
 #include <cstdint>
 #include <cstddef>
+#include <stdexcept>
 
 namespace liquidbook
 {
@@ -20,7 +21,15 @@ namespace liquidbook
 
     public:
         explicit FastQueue(std::size_t active_consumers = MaxConsumers)
-            : active_consumers_(active_consumers) {}
+            : active_consumers_(active_consumers)
+        {
+            if (active_consumers_ == 0 ||
+                active_consumers_ > MaxConsumers)
+            {
+                throw std::invalid_argument(
+                    "active_consumers must be between 1 and MaxConsumers");
+            }
+        }
 
         FastQueue(const FastQueue &) = delete;
         FastQueue &operator=(const FastQueue &) = delete;
@@ -36,6 +45,7 @@ namespace liquidbook
                 uint64_t read_pos = read_pos_[i].value.load(std::memory_order_acquire);
                 if (write_pos - read_pos >= Capacity)
                 {
+                    // Do not overwrite data that this consumer has not read yet.
                     return false;
                 }
             }
@@ -47,7 +57,7 @@ namespace liquidbook
 
         bool try_pop(std::size_t consumer_id, T &out)
         {
-            if (consumer_id >= MaxConsumers)
+            if (consumer_id >= active_consumers_)
             {
                 return false;
             }
@@ -55,7 +65,7 @@ namespace liquidbook
             uint64_t read_pos = read_pos_[consumer_id].value.load(std::memory_order_relaxed);
             uint64_t write_pos = write_pos_.load(std::memory_order_acquire);
 
-            if (read_pos == write_pos)
+            if (read_pos == write_pos) // queue is empty for this consumer
             {
                 return false;
             }
@@ -68,7 +78,7 @@ namespace liquidbook
         void reset()
         {
             write_pos_.store(0, std::memory_order_relaxed);
-            for (std::size_t i = 0; i < MaxConsumers; ++i)
+            for (std::size_t i = 0; i < active_consumers_; ++i)
             {
                 read_pos_[i].value.store(0, std::memory_order_relaxed);
             }
