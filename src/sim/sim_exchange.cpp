@@ -14,9 +14,9 @@ namespace liquidbook
   }
 
   std::optional<Trade> SimExchange::match_crossing(OrderBook &book,
-                                                 Side aggressor_side,
-                                                 uint64_t timestamp_ns,
-                                                 double aggressor_qty)
+                                                   Side aggressor_side,
+                                                   uint64_t timestamp_ns,
+                                                   double aggressor_qty)
   {
     if (!is_crossing(book))
     {
@@ -34,50 +34,39 @@ namespace liquidbook
 
       const auto trade_qty = std::min(ask_level->aggregate_qty,
                                       aggressor_qty > 0.0 ? aggressor_qty : bid_level->aggregate_qty);
+
       Trade trade{timestamp_ns, Side::Bid, ask_level->price, trade_qty};
+
       const auto remaining_ask = ask_level->aggregate_qty - trade_qty;
       book.apply_update(Side::Ask, ask_level->price, remaining_ask > 0.0 ? remaining_ask : 0.0);
+
       const auto remaining_bid = bid_level->aggregate_qty - trade_qty;
-      if (remaining_bid > 0.0)
-      {
-        book.apply_update(Side::Bid, bid_level->price, remaining_bid);
-      }
-      else
-      {
-        book.apply_update(Side::Bid, bid_level->price, 0.0);
-      }
+      book.apply_update(Side::Bid, bid_level->price, remaining_bid > 0.0 ? remaining_bid : 0.0);
+
       return trade;
     }
+    else // aggressor_side == Side::Ask
+    {
+      const auto bid_level = book.best_bid_level();
+      const auto ask_level = book.best_ask_level();
+      if (!bid_level || !ask_level)
+      {
+        return std::nullopt;
+      }
 
-    const auto bid_level = book.best_bid_level();
-    const auto ask_level = book.best_ask_level();
-    if (!bid_level || !ask_level)
-    {
-      return std::nullopt;
-    }
+      const auto trade_qty = std::min(bid_level->aggregate_qty,
+                                      aggressor_qty > 0.0 ? aggressor_qty : ask_level->aggregate_qty);
 
-    const auto trade_qty = std::min(bid_level->aggregate_qty,
-                                    aggressor_qty > 0.0 ? aggressor_qty : ask_level->aggregate_qty);
-    Trade trade{timestamp_ns, Side::Ask, bid_level->price, trade_qty};
-    const auto remaining_bid = bid_level->aggregate_qty - trade_qty;
-    if (remaining_bid > 0.0)
-    {
-      book.apply_update(Side::Bid, bid_level->price, remaining_bid);
+      Trade trade{timestamp_ns, Side::Ask, bid_level->price, trade_qty};
+
+      const auto remaining_bid = bid_level->aggregate_qty - trade_qty;
+      book.apply_update(Side::Bid, bid_level->price, remaining_bid > 0.0 ? remaining_bid : 0.0);
+
+      const auto remaining_ask = ask_level->aggregate_qty - trade_qty;
+      book.apply_update(Side::Ask, ask_level->price, remaining_ask > 0.0 ? remaining_ask : 0.0);
+
+      return trade;
     }
-    else
-    {
-      book.apply_update(Side::Bid, bid_level->price, 0.0);
-    }
-    const auto remaining_ask = ask_level->aggregate_qty - trade_qty;
-    if (remaining_ask > 0.0)
-    {
-      book.apply_update(Side::Ask, ask_level->price, remaining_ask);
-    }
-    else
-    {
-      book.apply_update(Side::Ask, ask_level->price, 0.0);
-    }
-    return trade;
   }
 
 } // namespace liquidbook
