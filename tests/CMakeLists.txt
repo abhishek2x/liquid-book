@@ -33,3 +33,14 @@ target_link_libraries(queue_stress_test PRIVATE
     Threads::Threads
 )
 
+# Phase 3 — replay + sim exchange integration tests
+add_executable(integration_tests
+    integration_test.cpp
+)
+target_link_libraries(integration_tests PRIVATE
+    book_lib
+    sim_lib
+    GTest::gtest_main
+)
+gtest_discover_tests(integration_tests)
+

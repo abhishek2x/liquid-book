@@ -14,7 +14,10 @@ namespace liquidbook
         upper.reserve(s.size());
         for (char c : s)
         {
-            upper += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            upper += static_cast<char>(           // store as char
+                std::toupper(                     // returns int
+                    static_cast<unsigned char>(c) // ensure non-negative input
+                    ));
         }
         if (upper == "BID")
             return Side::Bid;
@@ -23,7 +26,7 @@ namespace liquidbook
         throw std::invalid_argument("Unknown side string: " + std::string(s));
     }
 
-    void OrderBook::apply_bid_update(double price, double qty)
+    void OrderBook::apply_bid_update(double price, double qty) // new aggregate qty
     {
         for (auto it = bid_levels_.rbegin(); it != bid_levels_.rend(); ++it)
         {
@@ -31,7 +34,8 @@ namespace liquidbook
             {
                 if (qty == 0.0)
                 {
-                    bid_levels_.erase(std::next(it).base());
+                    auto erase_it = std::next(it).base();
+                    bid_levels_.erase(erase_it);
                 }
                 else
                 {

@@ -63,6 +63,14 @@ add_library(book_lib
 )
 target_include_directories(book_lib PUBLIC include)
 
+# ── Sim exchange + replay library (Phase 3) ──────────────────────────────────
+add_library(sim_lib
+    src/sim/market_replay.cpp
+    src/sim/sim_exchange.cpp
+)
+target_include_directories(sim_lib PUBLIC include)
+target_link_libraries(sim_lib PUBLIC book_lib)
+
 # ── Sub-directories ──────────────────────────────────────────────────────────
 enable_testing()
 add_subdirectory(tests)
