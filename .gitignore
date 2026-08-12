@@ -1,5 +1,12 @@
 IMPLEMENTATION.md
 build/
-compile_commands.json
-docs/description.md``
+build-release/
 build-tsan/
+compile_commands.json
+.vscode/
+.cache/
+docs/description.md
+a.out
+*.o
+*.obj
+*.dSYM/

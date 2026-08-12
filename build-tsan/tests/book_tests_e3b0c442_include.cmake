@@ -1,5 +1,0 @@
-if(EXISTS "/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/tests/book_tests_e3b0c442_tests.cmake")
-  include("/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/tests/book_tests_e3b0c442_tests.cmake")
-else()
-  add_test(book_tests_NOT_BUILT book_tests_NOT_BUILT)
-endif()

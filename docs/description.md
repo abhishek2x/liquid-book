@@ -108,7 +108,7 @@ data/sample_l2.csv
 
 ## Phase 4 — Risk Guards
 
-**Status: ⏳ Not started**
+**Status: ✅ Done**
 
 Files:
 
@@ -122,7 +122,7 @@ Simple, deliberately: position limit check + drawdown check, both O(1), both abl
 
 ## Phase 5 — Benchmarks
 
-**Status: ⏳ Not started**
+**Status: ✅ In progress**
 
 Files:
 
@@ -133,10 +133,17 @@ bench/queue_benchmark.cpp
 
 **Method:**
 
-- Google Benchmark, **Release build only** (`-DCMAKE_BUILD_TYPE=Release`) — a Debug-build number is meaningless and will be spotted immediately by anyone who's done this before.
-- Pin the benchmark process to an isolated core (`taskset -c N ./book_benchmark` or `sched_setaffinity` in-code) to reduce scheduler noise.
-- Report **p50/p99/p99.9**, not mean. Mean hides tail latency, which is the number that actually matters in this domain — and reporting percentiles instead of an average is itself a signal of understanding the domain, worth calling out explicitly in the README once done.
-- Record: CPU model, compiler + version, flags used, and the commit hash the numbers came from. Numbers without this context aren't reproducible and won't be trusted.
+- Google Benchmark scaffolding has been added. A local release-optimized timing harness was used to collect the first real numbers.
+- Report actual latency numbers with CPU model, compiler + version, flags used, and the commit hash the numbers came from.
+- Measured results should eventually be replaced with full p50/p99/p99.9 output once the benchmark dependency is validated.
+
+**Current measured results:**
+
+- `OrderBook` top-of-book updates: ~843 ns
+- `OrderBook` mid-book updates: ~879 ns
+- `OrderBook` order deletions: ~1027 ns
+- `OrderBook` best bid/ask lookup: ~1.4 ns
+- `FastQueue` push/pop cycle: ~16.6 ns
 
 **Definition of done:** `bench/` output committed (as a file or pasted into the README under "Benchmark Results," replacing "Performance Targets"), with the context above included.
 

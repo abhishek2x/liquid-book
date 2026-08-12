@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/Users/abhishek2x/Documents/Learnings/Quant/projects/liquid-book/build-tsan/_deps/googletest-subbuild/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

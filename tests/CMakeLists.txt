@@ -44,3 +44,12 @@ target_link_libraries(integration_tests PRIVATE
 )
 gtest_discover_tests(integration_tests)
 
+# Phase 4 — Risk guard tests
+add_executable(risk_tests
+    risk_test.cpp
+)
+target_link_libraries(risk_tests PRIVATE
+    GTest::gtest_main
+)
+gtest_discover_tests(risk_tests)
+

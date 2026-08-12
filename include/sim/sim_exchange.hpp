@@ -24,9 +24,9 @@ namespace liquidbook
     [[nodiscard]] bool is_crossing(const OrderBook &book) const noexcept;
 
     [[nodiscard]] std::optional<Trade> match_crossing(OrderBook &book,
-                                                    Side aggressor_side,
-                                                    uint64_t timestamp_ns = 0,
-                                                    double aggressor_qty = 0.0);
+                                                      Side aggressor_side,
+                                                      uint64_t timestamp_ns = 0,
+                                                      double aggressor_qty = 0.0);
   };
 
 } // namespace liquidbook

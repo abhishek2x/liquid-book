@@ -38,6 +38,15 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# Google Benchmark (Phase 6)
+FetchContent_Declare(
+    benchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG v1.8.3
+)
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(benchmark)
+
 # ── ThreadSanitizer option (Phase 2) ────────────────────────────────────────
 option(ENABLE_TSAN "Build with ThreadSanitizer" OFF)
 if(ENABLE_TSAN)
@@ -71,6 +80,17 @@ add_library(sim_lib
 target_include_directories(sim_lib PUBLIC include)
 target_link_libraries(sim_lib PUBLIC book_lib)
 
+# Engine executable (Phase 5)
+add_executable(liquid_book_engine
+    src/engine.cpp
+)
+target_link_libraries(liquid_book_engine PRIVATE
+    sim_lib
+    book_lib
+)
+target_include_directories(liquid_book_engine PRIVATE include)
+
 # ── Sub-directories ──────────────────────────────────────────────────────────
 enable_testing()
 add_subdirectory(tests)
+add_subdirectory(bench)

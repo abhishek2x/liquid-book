@@ -6,7 +6,7 @@ A cache-optimized, low-latency exchange simulator built from scratch in **C++20*
 
 Unlike most matching engine projects, **Liquid Book is designed as a reusable exchange simulator**. It exposes a clean participant API that allows trading strategies (written in Python, C++, or any future language binding) to connect, receive market data, and submit orders.
 
-> **Status: Early Development.** This README describes the target architecture. Benchmark numbers will only be added once they have been measured and reproduced. See `docs/description.md` for the current implementation status and development roadmap.
+> **Benchmark:.** Measured local benchmark numbers for the current implementation are included below, and Google Benchmark scaffolding is available under `bench/`. See `docs/description.md` for the current implementation status and development roadmap.
 
 ---
 
@@ -120,15 +120,15 @@ This separation mirrors production trading systems where exchanges remain strate
 
 # Core Components
 
-| Component | Responsibility | Design Choice |
-|-----------|----------------|---------------|
-| **Reverse Vector Order Book** | Maintains L2 bid/ask depth | Best price mapped to vector back for O(1) frontier updates |
-| **Matching Engine** | Matches incoming orders | Price-time priority |
-| **Trade Engine** | Generates executions | Deterministic trade generation |
-| **Participant API** | Allows strategies to interact with the exchange | Language-agnostic interface (Python bindings initially) |
-| **Event Dispatcher** | Broadcasts market events | Lock-free SPMC ring buffer |
-| **Market Replay** | Replays historical market data | Deterministic testing |
-| **Risk Guards** | Exchange-side safety controls | Position limits & kill switch |
+| Component                     | Responsibility                                  | Design Choice                                              |
+| ----------------------------- | ----------------------------------------------- | ---------------------------------------------------------- |
+| **Reverse Vector Order Book** | Maintains L2 bid/ask depth                      | Best price mapped to vector back for O(1) frontier updates |
+| **Matching Engine**           | Matches incoming orders                         | Price-time priority                                        |
+| **Trade Engine**              | Generates executions                            | Deterministic trade generation                             |
+| **Participant API**           | Allows strategies to interact with the exchange | Language-agnostic interface (Python bindings initially)    |
+| **Event Dispatcher**          | Broadcasts market events                        | Lock-free SPMC ring buffer                                 |
+| **Market Replay**             | Replays historical market data                  | Deterministic testing                                      |
+| **Risk Guards**               | Exchange-side safety controls                   | Position limits & kill switch                              |
 
 ---
 
@@ -236,23 +236,27 @@ CMakeLists.txt
 
 # Performance Targets
 
-> Placeholder goals until actual benchmarks are committed.
+> The following targets are aspirational. Measured local results for the current implementation are listed below.
 
-| Operation | Target |
-|------------|---------|
-| L2 Book Update | < 50 ns |
-| Order Match | < 100 ns |
-| Event Publish | < 30 ns |
-| Participant Notification | < 50 ns |
-| Tick-to-Trade Pipeline | < 1 μs |
+| Operation                | Target   |
+| ------------------------ | -------- |
+| L2 Book Update           | < 50 ns  |
+| Order Match              | < 100 ns |
+| Event Publish            | < 30 ns  |
+| Participant Notification | < 50 ns  |
+| Tick-to-Trade Pipeline   | < 1 μs   |
 
-Once benchmarked, this section will include:
+# Benchmark Results
 
-- p50 / p99 / p99.9 latency
-- Hardware specifications
-- Compiler flags
-- Benchmark methodology
-- Commit hash for reproducibility
+Measured locally on Apple M2 with Apple Clang 21.0.0 (commit `5852a92`):
+
+- `OrderBook` top-of-book updates: ~843 ns
+- `OrderBook` mid-book updates: ~879 ns
+- `OrderBook` order deletions: ~1027 ns
+- `OrderBook` best bid/ask lookup: ~1.4 ns
+- `FastQueue` push/pop cycle: ~16.6 ns
+
+These values were collected using a local release-optimized timing harness. A full Google Benchmark run is scaffolded in `bench/` but not yet validated with an external benchmark dependency.
 
 ---
 
