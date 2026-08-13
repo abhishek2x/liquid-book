@@ -5,7 +5,6 @@
 
 namespace risk
 {
-
     struct RiskLimits
     {
         double max_position{0.0}; // absolute position limit
