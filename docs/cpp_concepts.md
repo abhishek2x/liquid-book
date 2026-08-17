@@ -199,5 +199,3 @@ for (auto it = bid_levels_.rbegin(); it != bid_levels_.rend(); ++it) {
 - `std::next(it)` advances the reverse iterator by one step.
 - `.base()` converts the reverse iterator back to the equivalent normal iterator for the underlying `std::vector`.
 - This is a common C++ pattern when erasing from a reverse loop.
-
-If you want, I can add short code snippets in the repo showing `OrderBook` declarations in `include/` and implementations in `src/`, or expand this doc with cross-links to specific files. The new file is at [docs/cpp_concepts.md](docs/cpp_concepts.md).

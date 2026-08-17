@@ -16,9 +16,9 @@ if(APPLE)
     )
     if(MACOS_SDK_PATH)
         message(STATUS "macOS SDK: ${MACOS_SDK_PATH}")
-        add_compile_options(
-            -isystem ${MACOS_SDK_PATH}/usr/include/c++/v1
-            -isystem ${MACOS_SDK_PATH}/usr/include
+        include_directories(SYSTEM
+            "${MACOS_SDK_PATH}/usr/include/c++/v1"
+            "${MACOS_SDK_PATH}/usr/include"
         )
     endif()
 endif()
@@ -45,6 +45,11 @@ FetchContent_Declare(
     GIT_TAG v1.8.3
 )
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_WERROR OFF CACHE BOOL "" FORCE)
+if(APPLE)
+    set(HAVE_STD_REGEX ON CACHE BOOL "" FORCE)
+    set(HAVE_STEADY_CLOCK ON CACHE BOOL "" FORCE)
+endif()
 FetchContent_MakeAvailable(benchmark)
 
 # ── ThreadSanitizer option (Phase 2) ────────────────────────────────────────
